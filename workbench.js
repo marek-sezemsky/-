@@ -1,89 +1,108 @@
-function deg2rad(angle) { return (angle / 180) * Math.PI };
-
 /**
- * Init
+ * "Earth rise"
+ *
+ * Watch the planet Earth rise over the horizon of the Moon.
+ *
  */
 
+
+
+/**
+ * Mythical Math
+ */
+
+var AU = 149597871; // 1 Astronomical Unit [km]
+
+function deg2rad(angle) {
+  //  discuss at: http://phpjs.org/functions/deg2rad/
+  // original by: Enrique Gonzalez
+  // improved by: Thomas Grainger (http://graingert.co.uk)
+  //   example 1: deg2rad(45);
+  //   returns 1: 0.7853981633974483
+
+  return angle * .017453292519943295; // (angle / 180) * Math.PI;
+}
+
+
+/* construct scene, camera and attach renderer to the document body */
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(50,
-		window.innerWidth / window.innerHeight, 0.1, 1000);
+		window.innerWidth / window.innerHeight, 1, AU);
 
 var renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-//
-//var geometry = new THREE.BoxGeometry(1, 1, 1);
-//var geometry = new THREE.BoxGeometry(1, 1, 1);
-//var material = new THREE.MeshBasicMaterial({
-//	color : 0x00ff00,
-//	wireframe : true,
-//});
-//var cube = new THREE.Mesh(geometry, material);
-//// scene.add(cube);
+/* setup directional light, above us with small tilt */
+light = new THREE.DirectionalLight( 0xffffff, 0.8 );
+light.position.set( 0.2, 1, 0 );
+scene.add( light );
 
-camera.position.z = 5;
+/* add the Earth */
+var earth = new THREE.Mesh(
+    new THREE.SphereGeometry(6371, 18, 18),
+    new THREE.MeshPhongMaterial({
+        color : 0xff0000,
+        wireframe: true,
+    })
+);
+earth.position.z = -camera.position.z - 384400;
+scene.add(earth) // cube is a lie
 
-// Moon "cube"
-
-/**
- * The Moon differs from most satellites of other planets in that its orbit is
- * close to the plane of the ecliptic, and not to the Earth's equatorial plane.
- * 
- * The plane of the lunar orbit is inclined to the ecliptic by about 5.1°,
- * whereas the Moon's spin axis is inclined by only 1.5°.
- */
-
-var material = new THREE.MeshBasicMaterial({
-color : 0x00ff00,
-wireframe : true,
+/* add the Moon */    
+var material = new THREE.MeshPhongMaterial({
+    color : 0x00ff00,
+    wireframe: true,
 });
 
-var cube = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32),
-		material);
-cube.rotation.z = deg2rad(23);  
-scene.add(cube)
+var cube = new THREE.Mesh(
+            new THREE.SphereGeometry(1740, 18, 18),
+            material);
+    cube.rotation.z = deg2rad(5.1 + 1.5);  
+    scene.add(cube) // cube is a lie
 
-var curve = new THREE.QuadraticBezierCurve(
-	new THREE.Vector3( -1, 0, 0 ),
-	new THREE.Vector3( 2, 1.5, 0 ),
-	new THREE.Vector3( 1, 0, 0 )
-);
+// keep track of the Earth
+camera.lookAt(earth.position);
+    
+    
 
-var path = new THREE.Path( curve.getPoints( 50 ) );
-
-var geometry = path.createPointsGeometry( 50 );
-var material = new THREE.LineBasicMaterial( { color : 0xff0000 } );
-
-//Create the final Object3d to add to the scene
-var curveObject = new THREE.Line( geometry, material );
-scene.add(curveObject);
-
-var winResize = new THREEx.WindowResize(renderer, camera)
-
-/**
- * Render
- */
+// The Sphere!
+// The MOON
 
 var clock = new THREE.Clock();
 
-var render = function(time) { // time [ms]
-	requestAnimationFrame(render);
+camera.position.y = 1750;
+// camera.position.z = 1780;
 
-	// This block ensure that planet rotates at 1 revolution per second
-	// For each frame we get a correct degree and set it
-	//newRotation = 0.01;
-	//cube.rotation.y += newRotation; // [rad]
-	
-	quaternion = new THREE.Quaternion().setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), 0.01);
-	cube.quaternion.multiply(quaternion);
-	
-	// console.log(cube.rotation.y);
 
-	if ( camera.position.z > 3 ) {
-		camera.position.z -= 0.005;
-	}
-	renderer.render(scene, camera);
+var render = function(time) {
+    requestAnimationFrame(render);
+    
+    // slow rotation accoring to elapsed time
+    quaternion = new THREE.Quaternion().setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), Math.PI / 4096);
+    cube.quaternion.multiply(quaternion);
+
+    renderer.render(scene, camera);
 };
 
+
+var winResize = new THREEx.WindowResize(renderer, camera)
+
 render();
+
+// have some air
+var sound = new Howl({
+  urls: ['resources/music/Air_(Bach).ogg'],
+  autoplay: true,
+  loop: false,
+  volume: 0.2,
+    onplay: function() {
+        console.log('PLAY Air')
+    },
+    onend: function() {
+        console.log('END Air');
+    }
+})
+
+
+// once rendering is done, start playing music
