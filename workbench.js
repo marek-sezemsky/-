@@ -58,16 +58,20 @@ var theMoon = new THREE.Mesh(
 )
 
 // some ambient music
+var introMusicUrl = "resources/music/Smetana,_Má_vlast_-_Vltava_-_The_Moldau.ogg"
 var theMusic = new Howl({
-  urls: ["resources/music/Air_(Bach).ogg"],
-  autoplay: false,
+  urls: [introMusicUrl],
+  autoplay: true,
   loop: false,
-  volume: 0.1,
+  volume: 0.2,
+    onload: function() {
+        console.log("music onload")
+    },
     onplay: function() {
-        console.log('PLAY Air')
+        console.log('music onplay')
     },
     onend: function() {
-        console.log('END Air');
+        console.log('music onend');
     }
 })
 
@@ -84,58 +88,92 @@ var winResize = new THREEx.WindowResize(renderer, camera)
 scene.add(camera)
 
 
-// no moving orbits, planets in line with the Sun
-//theSun.position.set(0, 0, 3000000)
-theEarth.position.set(AU, 0, 0)
-theMoon.position.set(AU + 384400, 0, 0)
+// TODO: theSun.position.set(0, 0, 3000000)
+sunLight = new THREE.DirectionalLight( 0xffffff, 2 );
+sunLight.position.set(0, 0, -1)
+scene.add(sunLight);
 
-theMoon.rotation.x = 6 // well sort of
-camera.position.set(theMoon.position.x + 2000, 1500, 1400)
+
+// setup the theater
+theEarth.position.set(0, 0, 0)
+theEarth.rotation.x = deg2rad(0)  // earth rotates as ecliptic
+theMoon.position.set(384400, 0, 0)
+theMoon.rotation.x = deg2rad(5.145)
+
+// camera under south pole
+camera.position.set(theMoon.position.x+5000, 1750, -1200)
 camera.lookAt(theEarth.position)
 
 scene.add(theSun)
 scene.add(theEarth)
 scene.add(theMoon)
 
-var clock = new THREE.Clock();
+
+
+/* Telemetry console clock */
+var clock = new THREE.Clock()
+
+var samplingRate = 1600 // sample every 1 second
+var lastSample = 0
+
 var render = function(time) {
     requestAnimationFrame(render)
     
-    // slow rotation accoring to elapsed time
-    quaternion = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3( 0, 1, 0 ), Math.PI / 32000
-    )
-    // theMoon.quaternion.multiply(quaternion)
-
+    var clockTime = clock.getElapsedTime()
+    var clockDelta = clock.getDelta()
     
-    camera.position.z += 0.05
-    //camera.lookAt(theEarth.position)
+    /* do we sample telemetry this frame? */
+    var sampling = time > lastSample + samplingRate
+    if ( sampling ) {
+        lastSample = time
+    }
+
+    var logger = function (message) {
+        if ( sampling ) {
+            console.info(message)
+        }
+    }
+
+    logger({
+        'time': time,
+        'delta': clockDelta,
+        'ping': samplingRate
+    })
+    
+    /*
+     * equatorial rotation of scene bodies
+     */
+    var rotations = [ // body, rate[rad/s]
+        [theEarth, 7.292115e-5],
+        [theMoon,  2.6617e-6],
+    ]
+    rotations.forEach( function(rot) {
+        var body = rot[0]
+        var rate = rot[1]
+        var rads = clockDelta * 1
+
+        quaternion = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3( 0, 1, 0 ),
+            rads
+        )
+        //logger({'body': body.name, 'rads': rads, 'rot': body.rotation.y})
+        body.quaternion.multiply(quaternion)
+    })
     
     renderer.render(scene, camera)
 };
 
 
-
-
 // TODO keep it aligned with theSun
-sunLight = new THREE.DirectionalLight( 0xffffff, 2 );
-sunLight.position.set(0, 1, -.5)
-scene.add(sunLight);
-
 render();
-console.log('set camera and called render')
-
-// once rendering is done, start playing music
-console.log('starting game engine, haha')
+console.log('called render')
 
 
-window.addEventListener( 'resize', onWindowResize, false );
-
-function onWindowResize(){
-
+/* TODO perhaps THREEx.WindowResize should handle this? */
+var updateAspectRatio = function() {
     camera.aspect = window.innerWidth / window.innerHeight;
+    
     camera.updateProjectionMatrix();
-
-    renderer.setSize( window.innerWidth, window.innerHeight );
-
 }
+window.addEventListener( 'resize', updateAspectRatio )
+
