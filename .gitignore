@@ -1,3 +1,7 @@
+## game related, should come in own repository
+/PDS_DATA/*
+/resources.extra/*
+
 ## Python
 
 # Byte-compiled / optimized / DLL files
